@@ -1,0 +1,16 @@
+# This file is for building and pushing the TON Tools base image.
+# It is NOT for running the final application.
+version: '3.9'
+
+services:
+  # A name for our build service
+  ton-tools-builder:
+    # The name of the image that will be built and pushed to your registry
+    image: mhbdev/ton-tools:latest
+
+    # Build instructions
+    build:
+      # Use the current directory as the build context
+      context: .
+      # Specify the name of the Dockerfile to use
+      dockerfile: Dockerfile
