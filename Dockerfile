@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y \
 
 # Clone the TON source code into /ton
 WORKDIR /
-RUN git clone --recurse-submodules https://github.com/mhbdev/ton-blockchain.git
+RUN git clone --recurse-submodules https://github.com/mhbdev/ton-blockchain.git ton
 
 # Create a build directory
 WORKDIR /build
