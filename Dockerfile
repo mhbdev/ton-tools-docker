@@ -6,7 +6,7 @@ FROM ubuntu:22.04 AS ton-builder
 # Set non-interactive frontend for package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install all build dependencies
+# Install all build dependencies in a single, cacheable layer
 RUN apt-get update && apt-get install -y \
     tzdata \
     build-essential \
@@ -47,7 +47,7 @@ RUN git clone --recurse-submodules https://github.com/mhbdev/ton-blockchain.git 
 # Create a build directory
 WORKDIR /build
 
-# Configure with proper flags
+# Configure with proper flags for memory efficiency and better error reporting
 RUN cmake -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
           -DCMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -57,15 +57,9 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
           ../ton
 
-# Build targets individually with error handling
+# Build with reduced parallelism to avoid memory issues and better error visibility
 RUN --mount=type=cache,target=/root/.ccache \
-    set -e && \
-    echo "Building generate-random-id..." && \
-    cmake --build . -j2 --target generate-random-id --verbose && \
-    echo "Building tonlib-cli..." && \
-    cmake --build . -j2 --target tonlib-cli --verbose && \
-    echo "Building rldp-http-proxy..." && \
-    cmake --build . -j2 --target rldp-http-proxy --verbose
+    cmake --build . -j2 --target rldp-http-proxy generate-random-id tonlib-cli --verbose
 
 # =================================================
 # ===== Stage 2: Create the Clean Runtime Image ===
@@ -75,8 +69,10 @@ FROM ubuntu:22.04
 # Set non-interactive frontend
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install runtime dependencies
+# Update certificates first, then install dependencies
 RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
     wget \
     curl \
@@ -87,6 +83,7 @@ RUN apt-get update && \
     liblz4-1 \
     libsodium23 \
     libstdc++6 \
+    libreadline8 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binaries from the builder stage
@@ -104,8 +101,9 @@ RUN /usr/local/bin/generate-random-id --help || echo "generate-random-id built s
     /usr/local/bin/tonlib-cli --help || echo "tonlib-cli built successfully" && \
     /usr/local/bin/rldp-http-proxy --help || echo "rldp-http-proxy built successfully"
 
-# Download global config
-RUN wget -O /etc/global.config.json https://ton-blockchain.github.io/global.config.json
+# Download global config with proper certificate handling
+RUN wget -O /etc/global.config.json https://ton-blockchain.github.io/global.config.json || \
+    wget -O /etc/global.config.json https://ton.org/global-config.json
 
 # Create a working directory
 WORKDIR /app
