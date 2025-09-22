@@ -1,5 +1,4 @@
 name: Publish Docker Image to Docker Hub
-
 on:
   push:
     branches:
@@ -8,39 +7,41 @@ on:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
+        with:
+          driver-opts: |
+            network=host
+            
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
+          
       - name: Set up CCACHE cache
         uses: actions/cache@v4
         with:
           path: /tmp/.ccache
-          # The key invalidates the cache if the source repo's hash changes.
-          # We use a special github.repository value to point to your *other* repo.
-          key: ${{ runner.os }}-ccache-ton-fork-${{ github.repository }}-${{ hashFiles('**/Dockerfile') }}
+          key: ${{ runner.os }}-ccache-ton-${{ hashFiles('**/Dockerfile') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-ccache-ton-fork-${{ github.repository }}-
-
+            ${{ runner.os }}-ccache-ton-${{ hashFiles('**/Dockerfile') }}-
+            ${{ runner.os }}-ccache-ton-
+            
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: mhbdev/ton-tools # IMPORTANT: Change to your Docker Hub image name
+          images: mhbdev/ton-tools
           tags: |
             type=sha,prefix=
             type=raw,value=latest
-
+            
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -51,3 +52,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=local,src=/tmp/.ccache
           cache-to: type=local,dest=/tmp/.ccache,mode=max
+          # Add build arguments for better memory management
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+          # Reduce memory pressure
+          shm-size: 2g
