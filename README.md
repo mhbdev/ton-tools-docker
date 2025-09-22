@@ -1,4 +1,4 @@
-# TON Tools Docker Image 
+# TON Tools Docker Image
 This repository provides the necessary files to build a minimal, clean Docker image containing essential command-line tools for The Open Network (TON).
 
 The image is built using a multi-stage Dockerfile to ensure the final image is lightweight, containing only the compiled binaries and their necessary runtime dependencies. The image is automatically built and published to Docker Hub.
