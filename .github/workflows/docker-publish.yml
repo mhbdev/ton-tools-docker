@@ -1,5 +1,4 @@
 name: Publish Docker Image to Docker Hub
-
 on:
   push:
     branches:
@@ -7,13 +6,12 @@ on:
 
 jobs:
   build_and_push:
-    # 1. Use a more powerful runner
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+        
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -26,6 +24,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           
+      - name: Set up CCACHE cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.ccache
+          key: ${{ runner.os }}-ccache-ton-${{ hashFiles('**/Dockerfile') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-ton-${{ hashFiles('**/Dockerfile') }}-
+            ${{ runner.os }}-ccache-ton-
+            
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
@@ -43,6 +50,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # 2. Use the modern, integrated GHA cache for BuildKit
-          cache-to: type=gha,mode=max
-          cache-from: type=gha
+          cache-from: type=local,src=/tmp/.ccache
+          cache-to: type=local,dest=/tmp/.ccache,mode=max
+          # Add build arguments for better memory management
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+          # Reduce memory pressure
+          shm-size: 2g
