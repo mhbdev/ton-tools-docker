@@ -1,17 +1,17 @@
 # =================================================================
 # ===== Stage 1: Build TON Tools from Source ======================
 # =================================================================
-FROM ubuntu:20.04 AS ton-builder
+FROM ubuntu:22.04 AS ton-builder
 
 # Set non-interactive frontend for package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install all build dependencies in a single, cacheable layer
+# Install all build dependencies
 RUN apt-get update && apt-get install -y \
     tzdata \
     build-essential \
     cmake \
-    clang \
+    clang-14 \
     openssl \
     libssl-dev \
     zlib1g-dev \
@@ -28,49 +28,65 @@ RUN apt-get update && apt-get install -y \
     autoconf \
     automake \
     libtool \
+    ninja-build \
+    python3 \
+    python3-pip \
+    wget \
+    curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone the TON source code - IMPORTANT: specify the target directory name
-WORKDIR /
-RUN git clone --recurse-submodules https://github.com/ton-blockchain/ton.git ton
+# Set clang as the default compiler
+ENV CC=clang-14
+ENV CXX=clang++-14
 
-# OR if you want to keep using your fork, make sure to specify the directory name:
-# RUN git clone --recurse-submodules https://github.com/mhbdev/ton-blockchain.git ton
+# Clone the TON source code
+WORKDIR /
+RUN git clone --recurse-submodules https://github.com/mhbdev/ton-blockchain.git ton
 
 # Create a build directory
 WORKDIR /build
 
-# Set compiler environment variables
-ENV CC=clang
-ENV CXX=clang++
-
-# Compile the tools with ccache optimization
-RUN --mount=type=cache,target=/root/.ccache \
-    cmake -DCMAKE_BUILD_TYPE=Release \
+# Configure with proper flags
+RUN cmake -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
           -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-          ../ton && \
-    cmake --build . -j$(nproc) --target rldp-http-proxy generate-random-id tonlib-cli
+          -DCMAKE_CXX_COMPILER=clang++-14 \
+          -DCMAKE_C_COMPILER=clang-14 \
+          -DCMAKE_CXX_FLAGS="-stdlib=libstdc++" \
+          -DCMAKE_VERBOSE_MAKEFILE=ON \
+          ../ton
+
+# Build targets individually with error handling
+RUN --mount=type=cache,target=/root/.ccache \
+    set -e && \
+    echo "Building generate-random-id..." && \
+    cmake --build . -j2 --target generate-random-id --verbose && \
+    echo "Building tonlib-cli..." && \
+    cmake --build . -j2 --target tonlib-cli --verbose && \
+    echo "Building rldp-http-proxy..." && \
+    cmake --build . -j2 --target rldp-http-proxy --verbose
 
 # =================================================
 # ===== Stage 2: Create the Clean Runtime Image ===
 # =================================================
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Set non-interactive frontend
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install ONLY the RUNTIME dependencies needed for the compiled TON tools
+# Install runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     wget \
     curl \
-    libssl1.1 \
+    libssl3 \
     libatomic1 \
     zlib1g \
     libmicrohttpd12 \
     liblz4-1 \
     libsodium23 \
+    libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binaries from the builder stage
