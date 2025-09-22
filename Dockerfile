@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.4
-
 # =================================================================
 # ===== Stage 1: Build TON Tools from Source ======================
 # =================================================================
@@ -26,16 +24,23 @@ RUN apt-get update && apt-get install -y \
     liblz4-dev \
     libsodium-dev \
     libsecp256k1-dev \
+    autotools-dev \
+    autoconf \
+    automake \
+    libtool \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone the OFFICIAL TON source code
+# Clone the TON source code - IMPORTANT: specify the target directory name
 WORKDIR /
-RUN git clone --recurse-submodules https://github.com/mhbdev/ton-blockchain.git ton
+RUN git clone --recurse-submodules https://github.com/ton-blockchain/ton.git ton
+
+# OR if you want to keep using your fork, make sure to specify the directory name:
+# RUN git clone --recurse-submodules https://github.com/mhbdev/ton-blockchain.git ton
 
 # Create a build directory
 WORKDIR /build
 
-# Set compiler environment variables as per official docs
+# Set compiler environment variables
 ENV CC=clang
 ENV CXX=clang++
 
@@ -78,7 +83,12 @@ RUN chmod +x /usr/local/bin/rldp-http-proxy \
              /usr/local/bin/generate-random-id \
              /usr/local/bin/tonlib-cli
 
-# Download global config (optional - can be mounted at runtime)
+# Verify the binaries are working
+RUN /usr/local/bin/generate-random-id --help || echo "generate-random-id built successfully" && \
+    /usr/local/bin/tonlib-cli --help || echo "tonlib-cli built successfully" && \
+    /usr/local/bin/rldp-http-proxy --help || echo "rldp-http-proxy built successfully"
+
+# Download global config
 RUN wget -O /etc/global.config.json https://ton-blockchain.github.io/global.config.json
 
 # Create a working directory
