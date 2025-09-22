@@ -42,7 +42,7 @@ ENV CXX=clang++-14
 
 # Clone the TON source code
 WORKDIR /
-RUN git clone --recurse-submodules https://github.com/mhbdev/ton-blockchain.git ton
+RUN git clone --recurse-submodules https://github.com/ton-blockchain/ton.git ton
 
 # Create a build directory
 WORKDIR /build
