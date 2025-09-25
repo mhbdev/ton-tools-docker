@@ -88,7 +88,6 @@ RUN apt-get update && \
 
 # Copy the compiled binaries from the builder stage
 COPY --from=ton-builder /build/rldp-http-proxy/rldp-http-proxy /usr/local/bin/
-COPY --from=ton-builder /build/rldp-http-proxy/rldp-http-proxy /usr/local/bin/proxy
 COPY --from=ton-builder /build/utils/generate-random-id /usr/local/bin/
 COPY --from=ton-builder /build/tonlib/tonlib-cli /usr/local/bin/
 
