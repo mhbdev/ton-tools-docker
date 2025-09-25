@@ -102,8 +102,8 @@ RUN /usr/local/bin/generate-random-id --help || echo "generate-random-id built s
     /usr/local/bin/rldp-http-proxy --help || echo "rldp-http-proxy built successfully"
 
 # Download global config with proper certificate handling
-RUN wget -O /etc/global.config.json https://ton-blockchain.github.io/global.config.json || \
-    wget -O /etc/global.config.json https://ton.org/global-config.json
+RUN wget -O /etc/global.config.json https://ton.org/global-config.json || \
+    wget -O /etc/global.config.json https://ton-blockchain.github.io/global.config.json
 
 # Create a working directory
 WORKDIR /app
